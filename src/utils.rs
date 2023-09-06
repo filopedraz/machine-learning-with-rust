@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ndarray::{Array2, Array1};
 
@@ -55,25 +55,25 @@ fn dataframe_into_ndarray(df: &DataFrame) -> Array2<f64>{
 
 pub fn run_end_to_end_example() {
     // Load the dataset and show the first 5 rows
-    let df = load_dataset().unwrap();
+    let mut df = load_dataset().unwrap();
     println!("{:?}", df.head(Some(5)));
 
     // Encode the target from string to int
-    // let target_mapping = df.column("target").unwrap().unique().unwrap();
-    // let target_mapping_str: Vec<&str> = target_mapping.utf8().unwrap().into_iter().flatten().collect();
+    let target_mapping = df.column("target").unwrap().unique().unwrap();
+    let target_mapping_str: Vec<&str> = target_mapping.utf8().unwrap().into_iter().flatten().collect();
     
-    // let mut new_target_values: Vec<i32> = Vec::new();
-    // for value in df.column("target").unwrap().utf8().unwrap().into_iter() {
-    //     match value {
-    //         Some(v) if v == target_mapping_str[0] => new_target_values.push(0),
-    //         Some(v) if v == target_mapping_str[1] => new_target_values.push(1),
-    //         Some(v) if v == target_mapping_str[2] => new_target_values.push(2),
-    //         _ => panic!("Unexpected target value!"),
-    //     }
-    // }
-    // let new_target = Series::new("target", new_target_values);
-    // let df: &mut DataFrame = df.with_column(new_target).unwrap();
-    // println!("{:?}", df.head(Some(5))); 
+    let mut new_target_values: Vec<i32> = Vec::new();
+    for value in df.column("target").unwrap().utf8().unwrap().into_iter() {
+        match value {
+            Some(v) if v == target_mapping_str[0] => new_target_values.push(0),
+            Some(v) if v == target_mapping_str[1] => new_target_values.push(1),
+            Some(v) if v == target_mapping_str[2] => new_target_values.push(2),
+            _ => panic!("Unexpected target value!"),
+        }
+    }
+    let new_target = Series::new("target", new_target_values);
+    let df: &mut DataFrame = df.with_column(new_target).unwrap();
+    println!("{:?}", df.head(Some(5))); 
 
     // Assume that the target columns is called "target"
     let targets_series = df.column("target").unwrap().clone();
@@ -83,27 +83,36 @@ pub fn run_end_to_end_example() {
     let features_array: Array2<f64> = dataframe_into_ndarray(&features_df);
 
     // Convert target Series into 1D ndarray
-    // let targets_vec: Vec<i32> = targets_series.utf8().unwrap().into_iter()
-    //     .map(|opt_value| opt_value.unwrap_or_default())
-    //     .collect();
-    // let targets_array: Array1<i32> = Array1::from_vec(targets_vec);
+    let targets_vec: Vec<i32> = targets_series.i32().unwrap().into_iter().map(|opt_value| opt_value.unwrap_or_default()).collect();
+    let targets_array: Array1<i32> = Array1::from_vec(targets_vec);
 
     // Convert the Series of str into Vec<String>
-    let targets_array: Array1<String> = Array1::from_vec(targets_series.utf8().unwrap().clone().into_iter().filter_map(|opt_s| opt_s.map(|s| s.to_string())).collect());
+    // let targets_array: Array1<String> = Array1::from_vec(targets_series.utf8().unwrap().clone().into_iter().filter_map(|opt_s| opt_s.map(|s| s.to_string())).collect());
 
-    println!("{:?}", targets_array);
+    println!("{}", targets_array);
     // Create a linfa Dataset
-    let dataset = Dataset::new(features_array, targets_array);
+    let dataset = Dataset::new(features_array, targets_array)
+        .map_targets(|x| if *x == 0 { "setosa" } else if *x == 1 { "versicolor" } else { "virginica" });
 
     // Split the dataset into train and test
     let (train, test) = dataset.split_with_ratio(0.9);
 
     // Train the model
-    let model = LogisticRegression::default().max_iterations(150).fit(&train).unwrap();
+    let gini_model = DecisionTree::params()
+        .split_quality(SplitQuality::Gini)
+        .max_depth(Some(100))
+        .min_weight_split(1.0)
+        .min_weight_leaf(1.0)
+        .fit(&train)
+        .unwrap();
 
     // Evaluate the model
-    let pred = model.predict(&test);
-    let cm = pred.confusion_matrix(&test).unwrap();
+    let gini_pred_y = gini_model.predict(&test);
+    let cm = gini_pred_y.confusion_matrix(&test);
     println!("{:?}", cm);
+    println!(
+        "Test accuracy with Gini criterion: {:.2}%",
+        100.0 * cm.unwrap().accuracy()
+    );
     
 }
