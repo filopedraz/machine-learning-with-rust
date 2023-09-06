@@ -68,7 +68,6 @@ pub fn run_end_to_end_example() {
     // Convert target Series into 1D ndarray
     let targets_array: Array1<String> = Array1::from_vec(targets_series.utf8().unwrap().clone().into_iter().filter_map(|opt_s| opt_s.map(|s| s.to_string())).collect());
 
-    println!("{}", targets_array);
     // Create a linfa Dataset
     let dataset = Dataset::new(features_array, targets_array);
 
