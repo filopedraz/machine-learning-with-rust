@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 linfa = "*"
-linfa-datasets = { version = "*", features = ["winequality"] }
+linfa-datasets = { version = "*", features = ["winequality", "iris"] }
 linfa-logistic = "*"
-polars = "*"
+linfa-trees = "*"
+polars = "0.32.1"
+ndarray = "*"
