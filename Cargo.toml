@@ -10,5 +10,5 @@ linfa = "*"
 linfa-datasets = { version = "*", features = ["winequality", "iris"] }
 linfa-logistic = "*"
 linfa-trees = "*"
-polars = "0.32.1"
+polars = "*"
 ndarray = "*"
